@@ -22,7 +22,7 @@ const User = mongoose.model('User', new mongoose.Schema({
     scripts: {type: Array, default: []}
 })) 
 
-server.use(function(request, response, next) {
+server.use((request, response, next) => {
     response.setHeader('Content-Type', 'application/json')
     next()
 })
