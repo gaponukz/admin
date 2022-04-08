@@ -13,42 +13,58 @@ mongoose.connect(
 )
 
 const User = mongoose.model('User', new mongoose.Schema({
-    id: Number,
-    username: String,
-    key: String,
-    hash: Boolean,
-    start_preiod_date: Date,
-    end_preiod_date: Date,
-    scripts: Array
+    id: {type: Number, default: 0},
+    username: {type: String, default: ''},
+    key: {type: String, default: ''},
+    has_trial: {type: Boolean, default: true},
+    start_preiod_date: {type: Date, default: new Date()},
+    end_preiod_date: {type: Date, default: new Date()},
+    scripts: {type: Array, default: []}
 })) 
 
-server.get('/get_users', (request, response) => {
+server.use(function(request, response, next) {
     response.setHeader('Content-Type', 'application/json')
-
-    response.json({value: 'hello'})
+    next()
 })
 
-server.get('/get_user', (request, response) => {
-    response.setHeader('Content-Type', 'application/json')
-
-    response.json({value: 'hello'})
+server.get('/get_users', async (request, response) => {
+    // [User, User,...]
+    response.json(await User.find())
 })
 
-server.post('/add_user', (request, response) => {
-    response.setHeader('Content-Type', 'application/json')
-    response.json({value: 'hello'})
+server.get('/get_user', async (request, response) => {
+    // User
+    response.json(await User.findOne({key: request.query.key}))
 })
 
-server.post('/edit_user', (request, response) => {
-    response.setHeader('Content-Type', 'application/json')
-
-    response.json({value: 'hello'})
+server.get('/add_user', (request, response) => {
+    // User
+    const user = new User(request.query)
+    user.save().then(async (error) => {
+        response.json(user)
+    })
 })
 
-server.post('/remove_user', (request, response) => {
-    response.setHeader('Content-Type', 'application/json')
+server.get('/edit_user', async (request, response) => {
+    // {
+    //     "acknowledged": true,
+    //     "modifiedCount": 1,
+    //     "upsertedId": null,
+    //     "upsertedCount": 0,
+    //     "matchedCount": 1
+    // }
+    response.json(await User.updateOne(
+        {key: request.query.key},
+        request.query
+    ))
+})
 
-    response.json({value: 'hello'})
+server.get('/remove_user', async (request, response) => {
+    // {
+    //     "acknowledged": true,
+    //     "deletedCount": 1 or 0
+    // }
+    response.json(await User.deleteOne(request.query))
 })
 
 server.listen(port, () => {
