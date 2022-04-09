@@ -23,13 +23,24 @@ const User = mongoose.model('User', new mongoose.Schema({
 })) 
 
 server.use((request, response, next) => {
+    response.setHeader('Access-Control-Allow-Origin', '*')
     response.setHeader('Content-Type', 'application/json')
     next()
 })
 
 server.get('/get_users', async (request, response) => {
-    // [User, User,...]
-    response.json(await User.find())
+    if (request.query.adminApiKey === process.env.adminApiKey) {
+        console.log("Get users list")
+        response.json({
+            isLoginSuccess: true,
+            users: await User.find()
+        })
+    } else {
+        response.json({
+            isLoginSuccess: false,
+            users: []
+        })
+    }
 })
 
 server.get('/get_user', async (request, response) => {
@@ -46,25 +57,30 @@ server.get('/add_user', (request, response) => {
 })
 
 server.get('/edit_user', async (request, response) => {
-    // {
-    //     "acknowledged": true,
-    //     "modifiedCount": 1,
-    //     "upsertedId": null,
-    //     "upsertedCount": 0,
-    //     "matchedCount": 1
-    // }
-    response.json(await User.updateOne(
-        {key: request.query.key},
-        request.query
-    ))
+    if (request.query.adminApiKey === process.env.adminApiKey) {
+        const key = request.query.key
+        delete request.query.key
+        delete request.query.adminApiKey
+
+        console.log("Update user")
+        response.json(await User.updateOne(
+            {key: key},
+            request.query
+        ))
+    } else {
+        response.json({modifiedCount: 0})
+    }
 })
 
 server.get('/remove_user', async (request, response) => {
-    // {
-    //     "acknowledged": true,
-    //     "deletedCount": 1 or 0
-    // }
-    response.json(await User.deleteOne(request.query))
+    if (request.query.adminApiKey === process.env.adminApiKey) {
+        console.log("Remove user")
+        response.json(await User.deleteOne({
+            key: request.query.key
+        }))
+    } else {
+        response.json({deletedCount: 0})
+    }
 })
 
 server.listen(port, () => {
