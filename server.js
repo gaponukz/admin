@@ -1,9 +1,18 @@
 const express = require('express')
 const mongoose = require("mongoose")
+const crypto = require("crypto")
 
 const db = mongoose.connection
 const server = express()
 const port = 4000
+
+const generateUserKey = (username) => {
+    return crypto.createHash('sha256')
+        .update(username + new Date())
+        .digest('base64').replace('=', '')
+        .replace('&', '').replace('?', '')
+        .replace('/', '').replace('+', '')
+}
 
 require("dotenv").config()
 
@@ -15,7 +24,7 @@ mongoose.connect(
 const User = mongoose.model('User', new mongoose.Schema({
     id: {type: Number, default: 0},
     username: {type: String, default: ''},
-    key: {type: String, default: ''},
+    key: {type: String, default: generateUserKey()},
     has_trial: {type: Boolean, default: true},
     start_preiod_date: {type: Date, default: new Date()},
     end_preiod_date: {type: Date, default: new Date()},
@@ -47,22 +56,25 @@ server.get('/get_user', async (request, response) => {
     if (request.query.adminApiKey === process.env.adminApiKey) {
         response.json(await User.findOne({key: request.query.key}))
     } else {
-        response.json()
+        response.json({})
     }
 })
 
 server.get('/add_user', (request, response) => {
     if (request.query.adminApiKey === process.env.adminApiKey) {
         delete request.query.adminApiKey
+        request.query.key = generateUserKey(response.username ? response.username : '')
         try {
-            const user = new User(request.query)
-            user.save().then(async (error) => {
+            const newUser = new User(request.query)
+            newUser.save().then(async (user, error) => {
                 if (error) response.json({})
-                response.json(user)
+                else response.json(user)
             })
         } catch (error) {
             response.json({})
         } 
+    } else {
+        response.json({})
     }
 })
 
@@ -72,7 +84,6 @@ server.get('/edit_user', async (request, response) => {
         delete request.query.key
         delete request.query.adminApiKey
 
-        console.log("Update user")
         response.json(await User.updateOne(
             {key: key},
             request.query
@@ -91,6 +102,11 @@ server.get('/remove_user', async (request, response) => {
     } else {
         response.json({deletedCount: 0})
     }
+})
+
+server.get('/remove_all_users', async (request, response) => {
+    // REMOVE IN PRODACTION!!!
+    response.json(await User.deleteMany({}))
 })
 
 server.listen(port, () => {
