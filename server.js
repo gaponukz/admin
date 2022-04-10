@@ -44,16 +44,26 @@ server.get('/get_users', async (request, response) => {
 })
 
 server.get('/get_user', async (request, response) => {
-    // User
-    response.json(await User.findOne({key: request.query.key}))
+    if (request.query.adminApiKey === process.env.adminApiKey) {
+        response.json(await User.findOne({key: request.query.key}))
+    } else {
+        response.json()
+    }
 })
 
 server.get('/add_user', (request, response) => {
-    // User
-    const user = new User(request.query)
-    user.save().then(async (error) => {
-        response.json(user)
-    })
+    if (request.query.adminApiKey === process.env.adminApiKey) {
+        delete request.query.adminApiKey
+        try {
+            const user = new User(request.query)
+            user.save().then(async (error) => {
+                if (error) response.json({})
+                response.json(user)
+            })
+        } catch (error) {
+            response.json({})
+        } 
+    }
 })
 
 server.get('/edit_user', async (request, response) => {
