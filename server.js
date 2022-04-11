@@ -78,10 +78,6 @@ server.get('/remove_post', async (request, response) => {
     }
 })
 
-server.get('/remove_all_posts', async (request, response) => {
-    // REMOVE IN PRODACTION!!!
-    response.json(await Post.deleteMany({}))
-})
 
 server.get('/get_users', async (request, response) => {
     if (request.query.adminApiKey === process.env.adminApiKey) {
@@ -146,11 +142,6 @@ server.get('/remove_user', async (request, response) => {
     } else {
         response.json({deletedCount: 0})
     }
-})
-
-server.get('/remove_all_users', async (request, response) => {
-    // REMOVE IN PRODACTION!!!
-    response.json(await User.deleteMany({}))
 })
 
 server.listen(port, () => {
