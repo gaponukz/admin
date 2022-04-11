@@ -31,15 +31,60 @@ const User = mongoose.model('User', new mongoose.Schema({
     scripts: {type: Array, default: []}
 })) 
 
+const Post = mongoose.model('Post', new mongoose.Schema({
+    title: {type: String, default: ''},
+    description: {type: String, default: ''},
+    image: {type: String, default: ''}
+})) 
+
 server.use((request, response, next) => {
     response.setHeader('Access-Control-Allow-Origin', '*')
     response.setHeader('Content-Type', 'application/json')
     next()
 })
 
+
+server.get('/get_posts', async (request, response) => {
+    response.json({
+        isLoginSuccess: request.query.adminApiKey === process.env.adminApiKey,
+        posts: await Post.find()
+    })
+})
+
+server.get('/add_post', (request, response) => {
+    if (request.query.adminApiKey === process.env.adminApiKey) {
+        delete request.query.adminApiKey
+        try {
+            const newPost = new Post(request.query)
+            newPost.save().then(async (post, error) => {
+                if (error) response.json({})
+                else response.json(post)
+            })
+        } catch (error) {
+            response.json({})
+        } 
+    } else {
+        response.json({})
+    }
+})
+
+server.get('/remove_post', async (request, response) => {
+    if (request.query.adminApiKey === process.env.adminApiKey) {
+        response.json(await Post.deleteOne({
+            _id: request.query._id
+        }))
+    } else {
+        response.json({deletedCount: 0})
+    }
+})
+
+server.get('/remove_all_posts', async (request, response) => {
+    // REMOVE IN PRODACTION!!!
+    response.json(await Post.deleteMany({}))
+})
+
 server.get('/get_users', async (request, response) => {
     if (request.query.adminApiKey === process.env.adminApiKey) {
-        console.log("Get users list")
         response.json({
             isLoginSuccess: true,
             users: await User.find()
@@ -95,7 +140,6 @@ server.get('/edit_user', async (request, response) => {
 
 server.get('/remove_user', async (request, response) => {
     if (request.query.adminApiKey === process.env.adminApiKey) {
-        console.log("Remove user")
         response.json(await User.deleteOne({
             key: request.query.key
         }))
