@@ -44,6 +44,10 @@ server.use((request, response, next) => {
 })
 
 
+server.get('/', (request, response) => {
+    response.json({})
+})
+
 server.get('/get_posts', async (request, response) => {
     response.json({
         isLoginSuccess: request.query.adminApiKey === process.env.adminApiKey,
@@ -144,8 +148,8 @@ server.get('/remove_user', async (request, response) => {
     }
 })
 
-server.listen(port, () => {
-    console.log(`Server listening on port ${port}!`)
+server.listen(process.env.PORT || 5000, () => {
+    console.log(`Start server app`)
 })
 
 db.on('error', () => {
