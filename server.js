@@ -4,14 +4,13 @@ const crypto = require("crypto")
 
 const db = mongoose.connection
 const server = express()
-const port = 4000
 
 const generateUserKey = (username) => {
     return crypto.createHash('sha256')
         .update(username + new Date())
-        .digest('base64').replace('=', '')
-        .replace('&', '').replace('?', '')
-        .replace('/', '').replace('+', '')
+        .digest('base64').replaceAll('=', '')
+        .replaceAll('&', '').replaceAll('?', '')
+        .replaceAll('/', '').replaceAll('+', '')
 }
 
 require("dotenv").config()
