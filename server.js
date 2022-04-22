@@ -4,14 +4,13 @@ const crypto = require("crypto")
 
 const db = mongoose.connection
 const server = express()
-const port = 4000
 
 const generateUserKey = (username) => {
     return crypto.createHash('sha256')
         .update(username + new Date())
-        .digest('base64').replace('=', '')
-        .replace('&', '').replace('?', '')
-        .replace('/', '').replace('+', '')
+        .digest('base64').replaceAll('=', '')
+        .replaceAll('&', '').replaceAll('?', '')
+        .replaceAll('/', '').replaceAll('+', '')
 }
 
 require("dotenv").config()
@@ -40,19 +39,25 @@ const Post = mongoose.model('Post', new mongoose.Schema({
 server.use((request, response, next) => {
     response.setHeader('Access-Control-Allow-Origin', '*')
     response.setHeader('Content-Type', 'application/json')
+    console.log(`${request.method} ${response.statusCode} ${request.path}`)
     next()
 })
 
 
-server.get('/', (request, response) => {
+server.get('/', async (request, response) => {
     response.json({})
 })
 
 server.get('/get_posts', async (request, response) => {
-    response.json({
-        isLoginSuccess: request.query.adminApiKey === process.env.adminApiKey,
-        posts: await Post.find()
-    })
+    try {
+        response.json({
+            isLoginSuccess: request.query.adminApiKey === process.env.adminApiKey,
+            posts: await Post.find()
+        })
+    } catch (error) {
+        console.error(error)
+        response.json({isLoginSuccess: false, posts: []})
+    }
 })
 
 server.get('/add_post', (request, response) => {
@@ -73,34 +78,45 @@ server.get('/add_post', (request, response) => {
 })
 
 server.get('/remove_post', async (request, response) => {
-    if (request.query.adminApiKey === process.env.adminApiKey) {
-        response.json(await Post.deleteOne({
-            _id: request.query._id
-        }))
-    } else {
+    try {
+        if (request.query.adminApiKey === process.env.adminApiKey) {
+            response.json(await Post.deleteOne({
+                _id: request.query._id
+            }))
+        } else {
+            response.json({deletedCount: 0})
+        }
+    } catch (error) {
+        console.error(error)
         response.json({deletedCount: 0})
     }
 })
 
 
 server.get('/get_users', async (request, response) => {
-    if (request.query.adminApiKey === process.env.adminApiKey) {
-        response.json({
-            isLoginSuccess: true,
-            users: await User.find()
-        })
-    } else {
-        response.json({
-            isLoginSuccess: false,
-            users: []
-        })
+    try {
+        if (request.query.adminApiKey === process.env.adminApiKey) {
+            response.json({
+                isLoginSuccess: true,
+                users: await User.find()
+            })
+        } else {
+            response.json({
+                isLoginSuccess: false,
+                users: []
+            })
+        }
+    } catch (error) {
+        console.error(error)
+        response.json({isLoginSuccess: false, users: []})
     }
 })
 
 server.get('/get_user', async (request, response) => {
-    if (request.query.adminApiKey === process.env.adminApiKey) {
+    try {
         response.json(await User.findOne({key: request.query.key}))
-    } else {
+    } catch (error) {
+        console.error(error)
         response.json({})
     }
 })
@@ -124,26 +140,36 @@ server.get('/add_user', (request, response) => {
 })
 
 server.get('/edit_user', async (request, response) => {
-    if (request.query.adminApiKey === process.env.adminApiKey) {
-        const key = request.query.key
-        delete request.query.key
-        delete request.query.adminApiKey
-
-        response.json(await User.updateOne(
-            {key: key},
-            request.query
-        ))
-    } else {
+    try {
+        if (request.query.adminApiKey === process.env.adminApiKey) {
+            const key = request.query.key
+            delete request.query.key
+            delete request.query.adminApiKey
+    
+            response.json(await User.updateOne(
+                {key: key},
+                request.query
+            ))
+        } else {
+            response.json({modifiedCount: 0})
+        }
+    } catch (error) {
+        console.error(error)
         response.json({modifiedCount: 0})
     }
 })
 
 server.get('/remove_user', async (request, response) => {
-    if (request.query.adminApiKey === process.env.adminApiKey) {
-        response.json(await User.deleteOne({
-            key: request.query.key
-        }))
-    } else {
+    try {
+        if (request.query.adminApiKey === process.env.adminApiKey) {
+            response.json(await User.deleteOne({
+                key: request.query.key
+            }))
+        } else {
+            response.json({deletedCount: 0})
+        }
+    } catch (error) {
+        console.error(error)
         response.json({deletedCount: 0})
     }
 })
