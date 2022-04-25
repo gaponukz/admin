@@ -1,6 +1,7 @@
 const express = require('express')
 const mongoose = require("mongoose")
 const crypto = require("crypto")
+require("dotenv").config()
 
 const db = mongoose.connection
 const server = express()
@@ -13,14 +14,12 @@ const generateUserKey = (username) => {
 
 const UTCDate = (date = null) => {
     const currentDate = date ? new Date(date) : new Date() 
-    return new Date(currentDate.toUTCString().substr(0, 25))
+    return new Date(currentDate.toUTCString())
 }
 
 const nowDateAdd = (hours) => {
     return UTCDate(new Date().getTime() + hours * 3600000)
 }
-
-require("dotenv").config()
 
 mongoose.connect(
     process.env.databaseUri,
@@ -32,8 +31,8 @@ const User = mongoose.model('User', new mongoose.Schema({
     username: {type: String, default: ''},
     key: {type: String, default: generateUserKey()},
     has_trial: {type: Boolean, default: true},
-    start_preiod_date: {type: Date, default: new Date()},
-    end_preiod_date: {type: Date, default: new Date()},
+    start_preiod_date: {type: Date, default: UTCDate()},
+    end_preiod_date: {type: Date, default: UTCDate()},
     is_key_active: {type: Boolean, default: false},
     scripts: {type: Array, default: []}
 })) 
@@ -50,7 +49,6 @@ server.use((request, response, next) => {
     console.log(`${request.method} ${response.statusCode} ${request.path}`)
     next()
 })
-
 
 server.get('/', async (request, response) => {
     // await User.deleteMany({})
@@ -81,10 +79,10 @@ server.get('/get_user', async (request, response) => {
         const user = await User.findOne({key: request.query.key})
 
         if (user && !user.is_key_active) {
-            let howMuchLeft = UTCDate(user.end_preiod_date) - UTCDate(user.start_preiod_date)
+            let howMuchLeft = user.end_preiod_date - user.start_preiod_date
             howMuchLeft /= (60 * 60 * 1000)
 
-            user.start_preiod_date =  UTCDate()
+            user.start_preiod_date = UTCDate()
             user.end_preiod_date = nowDateAdd(howMuchLeft)
 
             await User.updateOne({key: user.key}, {
