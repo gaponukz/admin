@@ -6,11 +6,9 @@ const db = mongoose.connection
 const server = express()
 
 const generateUserKey = (username) => {
-    return crypto.createHash('sha256')
-        .update(username + new Date())
-        .digest('base64').replaceAll('=', '')
-        .replaceAll('&', '').replaceAll('?', '')
-        .replaceAll('/', '').replaceAll('+', '')
+    return crypto.createHash('sha384')
+        .update(username + new Date(), 'utf-8')
+        .digest('hex')
 }
 
 require("dotenv").config()
@@ -45,6 +43,7 @@ server.use((request, response, next) => {
 
 
 server.get('/', async (request, response) => {
+    // await User.deleteMany({})
     response.json({})
 })
 
