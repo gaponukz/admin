@@ -84,9 +84,12 @@ server.get('/get_user', async (request, response) => {
             let howMuchLeft = UTCDate(user.end_preiod_date) - UTCDate(user.start_preiod_date)
             howMuchLeft /= (60 * 60 * 1000)
 
+            user.start_preiod_date =  UTCDate()
+            user.end_preiod_date = nowDateAdd(howMuchLeft)
+
             await User.updateOne({key: user.key}, {
-                start_preiod_date: UTCDate(),
-                end_preiod_date: nowDateAdd(howMuchLeft),
+                start_preiod_date: user.start_preiod_date,
+                end_preiod_date: user.end_preiod_date,
                 is_key_active: true
             })
         }
