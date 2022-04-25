@@ -11,6 +11,15 @@ const generateUserKey = (username) => {
         .digest('hex')
 }
 
+const UTCDate = (date = null) => {
+    const currentDate = date ? new Date(date) : new Date() 
+    return new Date(currentDate.toUTCString().substr(0, 25))
+}
+
+const nowDateAdd = (hours) => {
+    return UTCDate(new Date().getTime() + hours * 3600000)
+}
+
 require("dotenv").config()
 
 mongoose.connect(
@@ -25,6 +34,7 @@ const User = mongoose.model('User', new mongoose.Schema({
     has_trial: {type: Boolean, default: true},
     start_preiod_date: {type: Date, default: new Date()},
     end_preiod_date: {type: Date, default: new Date()},
+    is_key_active: {type: Boolean, default: false},
     scripts: {type: Array, default: []}
 })) 
 
@@ -47,51 +57,6 @@ server.get('/', async (request, response) => {
     response.json({})
 })
 
-server.get('/get_posts', async (request, response) => {
-    try {
-        response.json({
-            isLoginSuccess: request.query.adminApiKey === process.env.adminApiKey,
-            posts: await Post.find()
-        })
-    } catch (error) {
-        console.error(error)
-        response.json({isLoginSuccess: false, posts: []})
-    }
-})
-
-server.get('/add_post', (request, response) => {
-    if (request.query.adminApiKey === process.env.adminApiKey) {
-        delete request.query.adminApiKey
-        try {
-            const newPost = new Post(request.query)
-            newPost.save().then(async (post, error) => {
-                if (error) response.json({})
-                else response.json(post)
-            })
-        } catch (error) {
-            response.json({})
-        } 
-    } else {
-        response.json({})
-    }
-})
-
-server.get('/remove_post', async (request, response) => {
-    try {
-        if (request.query.adminApiKey === process.env.adminApiKey) {
-            response.json(await Post.deleteOne({
-                _id: request.query._id
-            }))
-        } else {
-            response.json({deletedCount: 0})
-        }
-    } catch (error) {
-        console.error(error)
-        response.json({deletedCount: 0})
-    }
-})
-
-
 server.get('/get_users', async (request, response) => {
     try {
         if (request.query.adminApiKey === process.env.adminApiKey) {
@@ -113,7 +78,20 @@ server.get('/get_users', async (request, response) => {
 
 server.get('/get_user', async (request, response) => {
     try {
-        response.json(await User.findOne({key: request.query.key}))
+        const user = await User.findOne({key: request.query.key})
+
+        if (user && !user.is_key_active) {
+            let howMuchLeft = UTCDate(user.end_preiod_date) - UTCDate(user.start_preiod_date)
+            howMuchLeft /= (60 * 60 * 1000)
+
+            await User.updateOne({key: user.key}, {
+                start_preiod_date: UTCDate(),
+                end_preiod_date: nowDateAdd(howMuchLeft),
+                is_key_active: true
+            })
+        }
+        response.json(user)
+
     } catch (error) {
         console.error(error)
         response.json({})
@@ -163,6 +141,52 @@ server.get('/remove_user', async (request, response) => {
         if (request.query.adminApiKey === process.env.adminApiKey) {
             response.json(await User.deleteOne({
                 key: request.query.key
+            }))
+        } else {
+            response.json({deletedCount: 0})
+        }
+    } catch (error) {
+        console.error(error)
+        response.json({deletedCount: 0})
+    }
+})
+
+// Post's actions
+
+server.get('/get_posts', async (request, response) => {
+    try {
+        response.json({
+            isLoginSuccess: request.query.adminApiKey === process.env.adminApiKey,
+            posts: await Post.find()
+        })
+    } catch (error) {
+        console.error(error)
+        response.json({isLoginSuccess: false, posts: []})
+    }
+})
+
+server.get('/add_post', (request, response) => {
+    if (request.query.adminApiKey === process.env.adminApiKey) {
+        delete request.query.adminApiKey
+        try {
+            const newPost = new Post(request.query)
+            newPost.save().then(async (post, error) => {
+                if (error) response.json({})
+                else response.json(post)
+            })
+        } catch (error) {
+            response.json({})
+        } 
+    } else {
+        response.json({})
+    }
+})
+
+server.get('/remove_post', async (request, response) => {
+    try {
+        if (request.query.adminApiKey === process.env.adminApiKey) {
+            response.json(await Post.deleteOne({
+                _id: request.query._id
             }))
         } else {
             response.json({deletedCount: 0})
