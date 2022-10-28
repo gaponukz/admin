@@ -1,7 +1,10 @@
-const express = require('express')
-const mongoose = require("mongoose")
-const crypto = require("crypto")
-require("dotenv").config()
+import fetch from "node-fetch"
+import express from "express"
+import mongoose from "mongoose"
+import crypto from "crypto"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 const db = mongoose.connection
 const server = express()
@@ -34,8 +37,9 @@ const User = mongoose.model('User', new mongoose.Schema({
     start_preiod_date: {type: Date, default: UTCDate()},
     end_preiod_date: {type: Date, default: UTCDate()},
     is_key_active: {type: Boolean, default: false},
-    scripts: {type: Array, default: []}
-})) 
+    use_another_keys: {type: Boolean, default: false},
+    uuid: {type: String, default: null}
+}))
 
 const Post = mongoose.model('Post', new mongoose.Schema({
     title: {type: String, default: ''},
@@ -51,7 +55,7 @@ server.use((request, response, next) => {
 })
 
 server.get('/', async (request, response) => {
-    // await User.deleteMany({})
+    // await Message.deleteMany({})
     response.json({})
 })
 
@@ -85,10 +89,14 @@ server.get('/get_user', async (request, response) => {
             user.start_preiod_date = UTCDate()
             user.end_preiod_date = nowDateAdd(howMuchLeft)
 
+            let sameUuidUsers = (await User.find()).filter(user => request.query.uuid && user.uuid == request.query.uuid)
+
             await User.updateOne({key: user.key}, {
                 start_preiod_date: user.start_preiod_date,
                 end_preiod_date: user.end_preiod_date,
-                is_key_active: true
+                is_key_active: true,
+                uuid: request.query.uuid,
+                use_another_keys: sameUuidUsers.length !== 0
             })
         }
         response.json(user)
@@ -187,6 +195,68 @@ server.get('/remove_post', async (request, response) => {
     try {
         if (request.query.adminApiKey === process.env.adminApiKey) {
             response.json(await Post.deleteOne({
+                _id: request.query._id
+            }))
+        } else {
+            response.json({deletedCount: 0})
+        }
+    } catch (error) {
+        console.error(error)
+        response.json({deletedCount: 0})
+    }
+})
+// Messages 
+const Message = mongoose.model('Message', new mongoose.Schema({
+    subject: {type: String, default: ''},
+    gmail: {type: String, default: ''},
+    message: {type: String, default: ''},
+    date: {type: Date, default: UTCDate()}
+}))
+
+server.get('/send_message', async (request, response) => {
+    const telegramApiUrl = "https://api.telegram.org/bot"
+    const apiAction = "sendMessage"
+    try {        
+        new Message({
+            message: request.query.comment,
+            subject: request.query.subject,
+            gmail: request.query.gmail
+        }).save().then(async (message, error) => {
+            const text = `${request.query.comment} \n${message.subject} \n${message.gmail}`
+            
+            await fetch(`${telegramApiUrl}${process.env.botApi}/${apiAction}?chat_id=${process.env.sendTo}}&text=${text}`)
+            .then(async apiReponse => await apiReponse.json()).then(async apiReponse => {
+                response.json(apiReponse)
+            })
+        })
+    } catch (error) {
+        response.json({})
+    }
+})
+
+server.get('/get_messages', async (request, response) => {
+    try {
+        if (request.query.adminApiKey === process.env.adminApiKey) {
+            response.json({
+                isLoginSuccess: true,
+                messages: await Message.find()
+            })
+        } else {
+            response.json({
+                isLoginSuccess: false,
+                messages: []
+            })
+        }
+    } catch (error) {
+        console.error(error)
+        response.json({isLoginSuccess: false, messages: []})
+    }
+})
+
+server.get('/remove_message', async (request, response) => {
+    try {
+        if (request.query.adminApiKey === process.env.adminApiKey) {
+            response.json(await Message.deleteOne({
                 _id: request.query._id
             }))
         } else {
